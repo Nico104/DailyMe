@@ -1,8 +1,16 @@
+
 import 'package:flutter/material.dart';
 import 'package:dailyme/utils/storage/util_hive.dart';
 import 'package:dailyme/features/calendar/day_info.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+
+/// Returns true if the given [date] is the last day of its month.
+bool isLastDayOfMonth(DateTime date) {
+  final nextDay = date.add(const Duration(days: 1));
+  return nextDay.month != date.month;
+}
 
 /// Change this if your data starts earlier than 2020-01.
 const _baseYear = 2020;
@@ -140,7 +148,7 @@ class _CalendarPageState extends State<CalendarPage> {
         children: [
           // ---------- Month cards ----------
           AspectRatio(
-            aspectRatio: 1, // square card for aesthetic; tweak as desired
+            aspectRatio: isLastDayOfMonth(DateTime.now()) ? 0.96 : 1, // square card for aesthetic; tweak as desired
             child: PageView.builder(
               controller: _pageController,
               onPageChanged: (index) async {
@@ -350,14 +358,14 @@ class _MonthCard extends StatelessWidget {
                   if (idx < leadingEmpty || dayNum > daysInMonth) {
                     return const SizedBox.shrink(); // outside current month
                   }
-
+              
                   final date = DateTime(month.year, month.month, dayNum);
                   final isFuture = date.isAfter(today);
                   final isSelected = selectedDay != null &&
                       selectedDay!.year == date.year &&
                       selectedDay!.month == date.month &&
                       selectedDay!.day == date.day;
-
+              
                   final hasEvent = events.containsKey(date);
                   Color? ratingColor;
                   bool hasNoteNoRating = false;
@@ -394,7 +402,7 @@ class _MonthCard extends StatelessWidget {
                       hasNoteNoRating = events[date]!.any((e) => (e['note'] as String?)?.trim().isNotEmpty == true && (e['rating'] == null));
                     }
                   }
-
+              
                   Widget dayContent = Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -448,19 +456,19 @@ class _MonthCard extends StatelessWidget {
                         ),
                     ],
                   );
-
+              
                   if (isFuture) {
                     dayContent = Opacity(
                       opacity: 0.4,
                       child: dayContent,
                     );
                   }
-
+              
                   return GestureDetector(
                     onTap: isFuture ? null : () => onDayTap(date),
                     behavior: HitTestBehavior.translucent,
                     child: Container(
-                      padding: const EdgeInsets.all(6), // Increase tap area
+                      padding: const EdgeInsets.all(6),
                       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       decoration: isSelected
                           ? BoxDecoration(
