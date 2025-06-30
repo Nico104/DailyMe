@@ -94,154 +94,10 @@ class _SettingsState extends State<Settings> {
                       leading: const Icon(Icons.archive_outlined),
                       suffix: const Icon(Icons.keyboard_arrow_right),
                       onTap: () async {
-                        final prefs = await SharedPreferences.getInstance();
-                        final picturePaths = prefs.getStringList('today_pictures') ?? [];
-                        if (picturePaths.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No pictures to export.'),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                          return;
-                        }
-                        // Extract all dates from picture filenames (YYYY-MM-DD)
-                        final dateToPaths = <String, List<String>>{};
-                        final allDates = <String>[];
-                        for (final path in picturePaths) {
-                          final fileName = path.split(Platform.pathSeparator).last;
-                          final dateMatch = RegExp(r'^(\d{4}-\d{2}-\d{2})[_-]').firstMatch(fileName);
-                          if (dateMatch != null) {
-                            final date = dateMatch.group(1)!;
-                            allDates.add(date);
-                            dateToPaths.putIfAbsent(date, () => []).add(path);
-                          } else {
-                            dateToPaths.putIfAbsent('Unknown', () => []).add(path);
-                          }
-                        }
-                        // Limit selectable range to first and last picture date, like CSV export
-                        DateTime? minDate, maxDate;
-                        final dateObjs = allDates.map((d) {
-                          try {
-                            return DateTime.parse(d);
-                          } catch (_) {
-                            return null;
-                          }
-                        }).whereType<DateTime>().toList();
-                        if (dateObjs.isNotEmpty) {
-                          dateObjs.sort();
-                          minDate = dateObjs.first;
-                          maxDate = dateObjs.last;
-                        }
-                        // Use the same date range picker as CSV export, but limit range
-                        DateTimeRange? picked = await showDateRangePicker(
-                          context: context,
-                          firstDate: minDate ?? DateTime(DateTime.now().year - 5, 1, 1),
-                          lastDate: maxDate != null
-                              ? DateTime(maxDate.year, maxDate.month, DateTime(maxDate.year, maxDate.month + 1, 0).day)
-                              : DateTime(DateTime.now().year + 1, 12, 31),
-                          initialDateRange: (minDate != null && maxDate != null)
-                              ? DateTimeRange(start: minDate, end: DateTime(maxDate.year, maxDate.month, DateTime(maxDate.year, maxDate.month + 1, 0).day))
-                              : null,
-                        );
-                        if (picked == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Export cancelled.'),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                          return;
-                        }
-                        // Collect selected dates in range
-                        final selectedDates = dateToPaths.keys.where((d) {
-                          if (d == 'Unknown') return false;
-                          try {
-                            final dt = DateTime.parse(d);
-                            return !dt.isBefore(picked.start) && !dt.isAfter(picked.end);
-                          } catch (_) {
-                            return false;
-                          }
-                        }).toList();
-                        // Optionally, include 'Unknown' if user wants (here: always include if present)
-                        if (dateToPaths.containsKey('Unknown')) {
-                          selectedDates.add('Unknown');
-                        }
-                        if (selectedDates.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('No pictures found in selected range.'),
-                              backgroundColor: Colors.redAccent,
-                            ),
-                          );
-                          return;
-                        }
-                        showCustomNicoLoadingModalBottomSheet(
-                          context: context,
-                          future: (() async {
-                            final archive = Archive();
-                            for (final date in selectedDates) {
-                              final paths = dateToPaths[date] ?? [];
-                              for (final path in paths) {
-                                final file = File(path);
-                                if (await file.exists()) {
-                                  final fileName = path.split(Platform.pathSeparator).last;
-                                  // Folder structure: year/month/day/file or Unknown/file
-                                  String archivePath;
-                                  if (date != 'Unknown') {
-                                    final parts = date.split('-');
-                                    if (parts.length == 3) {
-                                      archivePath = '${parts[0]}/${parts[1]}/${parts[2]}/$fileName';
-                                    } else {
-                                      archivePath = '$date/$fileName';
-                                    }
-                                  } else {
-                                    archivePath = 'Unknown/$fileName';
-                                  }
-                                  archive.addFile(ArchiveFile(archivePath, await file.length(), await file.readAsBytes()));
-                                }
-                              }
-                            }
-                            if (archive.isEmpty) {
-                              throw Exception('No valid picture files found to export.');
-                            }
-                            final zipData = ZipEncoder().encode(archive);
-                            // Save to temp file
-                            final tempDir = Directory.systemTemp;
-                            final tempZip = File('${tempDir.path}/pictures_export.zip');
-                            await tempZip.writeAsBytes(zipData, flush: true);
-                            // Share the file
-                            await Share.shareXFiles([
-                              XFile(tempZip.path, mimeType: 'application/zip')
-                            ], text: 'Pictures export');
-                            return 'shared';
-                          })(),
-                          callback: (result) {
-                            if (result is Exception || result is Error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(result.toString().replaceFirst('Exception: ', '')),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                            } else if (result == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Export cancelled.'),
-                                  backgroundColor: Colors.redAccent,
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Pictures ZIP ready to share.'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          },
-                        );
-                      }),
+                        await _exportPicturesAsZip(context);
+                      },
+                  ),
+  
                   ],
                 ),
               ),
@@ -270,7 +126,7 @@ class _SettingsState extends State<Settings> {
                     const SizedBox(height: 12),
                     SettingsItem(
                       label: "App appearance",
-                      leading: const Icon(Icons.palette_outlined, color: Colors.black87),
+                      leading: const Icon(Icons.palette_outlined),
                       suffix: const Icon(Icons.keyboard_arrow_right),
                       onTap: () {
                         navigatePerSlide(
@@ -462,6 +318,150 @@ class _SettingsState extends State<Settings> {
     );
   }
 }
+
+Future<void> _exportPicturesAsZip(BuildContext context) async {
+    // Use HiveDayStorage for all picture paths
+    final box = await Hive.openBox(HiveDayStorage.boxName);
+    final keys = box.keys.whereType<String>().toList();
+    final dateToPaths = <String, List<String>>{};
+    final allDates = <String>[];
+    for (final key in keys) {
+      final entry = box.get(key);
+      if (entry is Map && entry.containsKey('pictures')) {
+        final pics = entry['pictures'];
+        if (pics is List) {
+          for (final path in pics) {
+            if (path is String && path.isNotEmpty) {
+              dateToPaths.putIfAbsent(key, () => []).add(path);
+              allDates.add(key);
+            }
+          }
+        }
+      }
+    }
+    if (dateToPaths.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pictures to export.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    // Limit selectable range to first and last picture date, like CSV export
+    DateTime? minDate, maxDate;
+    final dateObjs = allDates.map((d) {
+      try {
+        return DateTime.parse(d);
+      } catch (_) {
+        return null;
+      }
+    }).whereType<DateTime>().toList();
+    if (dateObjs.isNotEmpty) {
+      dateObjs.sort();
+      minDate = dateObjs.first;
+      maxDate = dateObjs.last;
+    }
+    // Use the same date range picker as CSV export, but limit range
+    DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: minDate ?? DateTime(DateTime.now().year - 5, 1, 1),
+      lastDate: maxDate != null
+          ? DateTime(maxDate.year, maxDate.month, DateTime(maxDate.year, maxDate.month + 1, 0).day)
+          : DateTime(DateTime.now().year + 1, 12, 31),
+      initialDateRange: (minDate != null && maxDate != null)
+          ? DateTimeRange(start: minDate, end: DateTime(maxDate.year, maxDate.month, DateTime(maxDate.year, maxDate.month + 1, 0).day))
+          : null,
+    );
+    if (picked == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Export cancelled.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    // Collect selected dates in range
+    final selectedDates = dateToPaths.keys.where((d) {
+      try {
+        final dt = DateTime.parse(d);
+        return !dt.isBefore(picked.start) && !dt.isAfter(picked.end);
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+    if (selectedDates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No pictures found in selected range.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    showCustomNicoLoadingModalBottomSheet(
+      context: context,
+      future: (() async {
+        final archive = Archive();
+        for (final date in selectedDates) {
+          final paths = dateToPaths[date] ?? [];
+          for (final path in paths) {
+            final file = File(path);
+            if (await file.exists()) {
+              final fileName = path.split(Platform.pathSeparator).last;
+              // Folder structure: year/month/day/file
+              String archivePath;
+              final parts = date.split('-');
+              if (parts.length == 3) {
+                archivePath = '${parts[0]}/${parts[1]}/${parts[2]}/$fileName';
+              } else {
+                archivePath = '$date/$fileName';
+              }
+              archive.addFile(ArchiveFile(archivePath, await file.length(), await file.readAsBytes()));
+            }
+          }
+        }
+        if (archive.isEmpty) {
+          throw Exception('No valid picture files found to export.');
+        }
+        final zipData = ZipEncoder().encode(archive);
+        // Save to temp file
+        final tempDir = Directory.systemTemp;
+        final tempZip = File('${tempDir.path}/pictures_export.zip');
+        await tempZip.writeAsBytes(zipData, flush: true);
+        // Share the file
+        await Share.shareXFiles([
+          XFile(tempZip.path, mimeType: 'application/zip')
+        ], text: 'Pictures export');
+        return 'shared';
+      })(),
+      callback: (result) {
+        if (result is Exception || result is Error) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.toString().replaceFirst('Exception: ', '')),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        } else if (result == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Export cancelled.'),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pictures ZIP ready to share.'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      },
+    );
+  }
 
 Widget _buildVersionInfoText() {
   return FutureBuilder<PackageInfo>(

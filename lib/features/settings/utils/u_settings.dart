@@ -7,40 +7,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 
-/// Helper to select a date range using the same logic as CSV export, but returns the picked range or null.
-Future<DateTimeRange?> pickDateRangeForPictures(BuildContext context, List<String> allDates) async {
-  // Like CSV: initial range is first and last entry
-  DateTime minDate = DateTime.now();
-  DateTime maxDate = DateTime.now();
-  final dateList = allDates.map((d) {
-    try {
-      return DateTime.parse(d);
-    } catch (_) {
-      return null;
-    }
-  }).whereType<DateTime>().toList();
-  if (dateList.isNotEmpty) {
-    dateList.sort();
-    minDate = dateList.first;
-    maxDate = dateList.last;
-    // For pictures, allow up to the last day of the last month for better UX (like CSV)
-    final lastDay = DateTime(maxDate.year, maxDate.month + 1, 0).day;
-    maxDate = DateTime(maxDate.year, maxDate.month, lastDay);
-  } else {
-    // fallback: allow user to pick any date
-    minDate = DateTime(DateTime.now().year - 5, 1, 1);
-    maxDate = DateTime(DateTime.now().year + 1, 12, 31);
-  }
-  await Future.delayed(Duration.zero);
-  return await showDateRangePicker(
-    context: context,
-    firstDate: minDate,
-    lastDate: maxDate,
-    initialDateRange: DateTimeRange(start: minDate, end: maxDate),
-  );
-}
-
-
 /// Exports entries with a note or rating to CSV for a selected period.
 /// Prompts the user to pick a date range, then saves the CSV to device storage.
 Future<void> exportEntriesToCsv(BuildContext context) async {

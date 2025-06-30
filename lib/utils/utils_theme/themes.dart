@@ -17,12 +17,10 @@ final ThemeData constLightTheme = ThemeData(
     
   ),
   colorScheme: ColorScheme.fromSeed(
-    seedColor: HexColor("#f3f3f3"), // or any color you want
+    seedColor: HexColor("#f3f3f3"), 
     brightness: Brightness.light,
-    primary: HexColor("#040707"), // or any color you want
-    secondary: HexColor("040707"), // or any color you want
-    onPrimary: Colors.white,  
-
+    primary: HexColor("#040707"), 
+    secondary: HexColor("040707"), 
   ),
   appBarTheme: AppBarTheme(
     backgroundColor: HexColor("#F2F3F4"),
@@ -235,6 +233,13 @@ final ThemeData constDarkTheme = ThemeData(
       systemNavigationBarColor: HexColor("121212"),
       systemNavigationBarIconBrightness: Brightness.light,
     ),
+  ),
+
+    colorScheme: ColorScheme.fromSeed(
+    seedColor: HexColor("#121212"), 
+    brightness: Brightness.dark,
+    primary: HexColor("#f3f3f3"), 
+    secondary: HexColor("f3f3f3"), 
   ),
   //Used e.p. for SocialMediaContainer
   primaryColor: HexColor("121212"),

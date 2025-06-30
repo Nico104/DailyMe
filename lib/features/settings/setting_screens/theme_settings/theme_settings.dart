@@ -18,7 +18,7 @@ class _ThemeSettingsState extends State<ThemeSettings> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          "appBarTitleThemeSettings",
+          'Theme Settings',
           style: GoogleFonts.libreBaskerville(
             textStyle: Theme.of(context).appBarTheme.titleTextStyle,
           ),

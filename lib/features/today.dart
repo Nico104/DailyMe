@@ -9,6 +9,8 @@ import 'package:dailyme/utils/widgets/day_rating.dart';
 import 'package:dailyme/utils/storage/util_hive.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 
 class TodayScreen extends StatefulWidget {
@@ -123,11 +125,45 @@ class _TodayContent extends StatefulWidget {
 
 class _TodayContentState extends State<_TodayContent> {
   late Map<String, dynamic> _todayData;
+  // Debounce timer for note saving
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _todayData = Map<String, dynamic>.from(widget.initialData);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onRatingSelected(int? rating) {
+    setState(() {
+      _todayData['rating'] = rating;
+    });
+    _saveTodayData();
+  }
+
+  void _onNoteChanged(String value) {
+    _todayData['note'] = value;
+    // Debounce saving to avoid writing on every keystroke
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), _saveTodayData);
+  }
+
+  Future<void> _saveTodayData() async {
+    final today = DateTime.now();
+    final latest = await HiveDayStorage.retrieveDay(today) ?? {};
+    final merged = {
+      ...latest,
+      ..._todayData,
+      'pictures': latest['pictures'] ?? <String>[],
+    };
+    await HiveDayStorage.storeDay(today, merged);
+    // print('Today data: $merged'); // Remove or keep as needed
   }
 
   @override
@@ -137,21 +173,7 @@ class _TodayContentState extends State<_TodayContent> {
       children: [
         DayRatingBar(
           selectedRating: _todayData['rating'],
-          onRatingSelected: (rating) async {
-            setState(() {
-              _todayData['rating'] = rating;
-            });
-            // Merge with latest Hive data to preserve pictures
-            final today = DateTime.now();
-            final latest = await HiveDayStorage.retrieveDay(today) ?? {};
-            final merged = {
-              ...latest,
-              ..._todayData,
-              'pictures': latest['pictures'] ?? <String>[],
-            };
-            HiveDayStorage.storeDay(today, merged);
-            print('Today data: $merged');
-          },
+          onRatingSelected: _onRatingSelected,
         ),
         const SizedBox(height: 16),
         Expanded(
@@ -162,26 +184,14 @@ class _TodayContentState extends State<_TodayContent> {
               expands: true,
               labelText: 'Whats going on today?',
               initialValue: _todayData['note'] ?? '',
-              onChanged: (value) async {
-                _todayData['note'] = value;
-                // Merge with latest Hive data to preserve pictures
-                final today = DateTime.now();
-                final latest = await HiveDayStorage.retrieveDay(today) ?? {};
-                final merged = {
-                  ...latest,
-                  ..._todayData,
-                  'pictures': latest['pictures'] ?? <String>[],
-                };
-                HiveDayStorage.storeDay(today, merged);
-                print('Today data: $merged');
-              },
+              onChanged: _onNoteChanged,
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          // child: const AutoSaveInfo(),
-        ),
+        // Padding(
+        //   padding: const EdgeInsets.all(8.0),
+        //   child: const AutoSaveInfo(),
+        // ),
       ],
     );
   }
