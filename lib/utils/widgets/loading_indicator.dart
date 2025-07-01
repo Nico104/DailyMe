@@ -1,4 +1,3 @@
-import 'package:dailyme/utils/utils_theme/custom_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 

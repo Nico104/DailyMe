@@ -22,6 +22,8 @@ import 'package:share_plus/share_plus.dart';
 
 
 class Settings extends StatefulWidget {
+  const Settings({super.key});
+
 
 
   @override

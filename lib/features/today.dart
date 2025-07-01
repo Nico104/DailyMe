@@ -14,7 +14,7 @@ import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 
 class TodayScreen extends StatefulWidget {
-  const TodayScreen({Key? key}) : super(key: key);
+  const TodayScreen({super.key});
 
   @override
   State<TodayScreen> createState() => _TodayScreenState();
@@ -33,7 +33,7 @@ class _TodayScreenState extends State<TodayScreen> {
     final initialData = {
       'date': data?['date'] ?? _dateKey(today),
       'note': data?['note'] ?? '',
-      'rating': data?['rating'] ?? null,
+      'rating': data?['rating'],
     };
     // If no data existed, create an empty object for today in Hive
     if (data == null) {

@@ -12,6 +12,7 @@ class DayInfo extends StatelessWidget {
   final String? note;
   final int? rating; // 1‑5
   final List<String>? picturePaths; // List of image file paths for this day
+  final bool showDate;
 
   const DayInfo({
     super.key,
@@ -19,6 +20,7 @@ class DayInfo extends StatelessWidget {
     this.note,
     this.rating,
     this.picturePaths,
+    this.showDate = true,
   });
 
   // ------------------------------------------------------------- Helpers
@@ -67,7 +69,7 @@ class DayInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    void _showImageDialog(String path) {
+    void showImageDialog(String path) {
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -94,28 +96,29 @@ class DayInfo extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Dot + Date row
-          Row(
-            children: [
-              _buildRatingDot(context),
-              Text(
-                _formatDate(date),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-
-          // Optional note
-          if (note != null && note!.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header: Date and rating dot
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildRatingDot(context),
             Text(
+              _formatDate(date),
+              // "xdfff",
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w100,
+              ),
+            ),
+          ],
+        ),
+    
+        // Note section
+        if (note != null && note!.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+            child: Text(
               note!,
               style: theme.textTheme.bodyMedium?.copyWith(
                 height: 1.4,
@@ -123,54 +126,65 @@ class DayInfo extends StatelessWidget {
                 color: theme.colorScheme.onSurface.withOpacity(0.8),
               ),
             ),
-          ],
-
-          // Pictures section (always show, fallback if empty)
-          const SizedBox(height: 10),
-          if (picturePaths != null && picturePaths!.isNotEmpty)
-            SizedBox(
-              height: 80,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: picturePaths!.length,
-                separatorBuilder: (context, idx) => const SizedBox(width: 8),
-                itemBuilder: (context, idx) {
-                  final path = picturePaths![idx];
-                  return GestureDetector(
-                    onTap: () => _showImageDialog(path),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.file(
-                        File(path),
-                        width: 80,
-                        height: 80,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            Container(
-                          width: 80,
-                          height: 80,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.broken_image, size: 32),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            )
+          )
           else
-            Padding(
-              padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
-              child: Text(
-                'No pictures for this entry.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5),
-                  fontStyle: FontStyle.italic,
+           Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 0),
+                  child: Text(
+                    'No pictures for this entry.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
-      ),
+    
+        // Pictures section
+        Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: (picturePaths != null && picturePaths!.isNotEmpty)
+              ? SizedBox(
+                  height: 80,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: picturePaths!.length,
+                    separatorBuilder: (context, idx) => const SizedBox(width: 8),
+                    itemBuilder: (context, idx) {
+                      final path = picturePaths![idx];
+                      return GestureDetector(
+                        onTap: () => showImageDialog(path),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: Image.file(
+                            File(path),
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                              width: 80,
+                              height: 80,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.broken_image, size: 32),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                  child: Text(
+                    'No pictures for this entry.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

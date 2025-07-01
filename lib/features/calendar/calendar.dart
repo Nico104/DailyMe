@@ -1,9 +1,11 @@
+import 'package:dailyme/features/calendar/_future_note_overlay_input.dart';
 
 import 'package:flutter/material.dart';
 import 'package:dailyme/utils/storage/util_hive.dart';
 import 'package:dailyme/features/calendar/day_info.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:dailyme/features/calendar/future_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:dailyme/features/calendar/_month_picker_dialog.dart' show MonthPickerDialog;
 
 
 /// Returns true if the given [date] is the last day of its month.
@@ -25,6 +27,47 @@ class CalendarPage extends StatefulWidget {
 }
 
 class _CalendarPageState extends State<CalendarPage> {
+
+  Future<DateTime?> _findEarliestEntry() async {
+    // Find the earliest event date in _events, or null if none
+    if (_events.isNotEmpty) {
+      final allDates = _events.keys.toList();
+      allDates.sort((a, b) => a.compareTo(b));
+      return allDates.first;
+    }
+    // If no events loaded, try to load from storage for all years
+    // (for performance, just try the base year)
+    final data = await HiveDayStorage.retrieveYear(_baseYear);
+    if (data.isNotEmpty) {
+      final first = data.first;
+      if (first['date'] != null && first['date'] is String) {
+        final parts = (first['date'] as String).split('-');
+        if (parts.length == 3) {
+          return DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+        }
+      }
+    }
+    return null;
+  }
+
+  void _showMonthPickerDialog() async {
+    final earliest = await _findEarliestEntry();
+    final selected = await showDialog<DateTime>(
+      context: context,
+      builder: (context) => MonthPickerDialog(
+        initialMonth: _focusedMonth,
+        baseYear: _baseYear,
+        earliestEntry: earliest,
+      ),
+    );
+    if (selected != null) {
+      setState(() {
+        _focusedMonth = DateTime(selected.year, selected.month);
+        _pageController.jumpToPage(_monthIndex(_focusedMonth));
+        _selectDay(DateTime(_focusedMonth.year, _focusedMonth.month, 1));
+      });
+    }
+  }
   bool _weekStartsOnMonday = true;
 
   Future<void> _loadWeekStartPref() async {
@@ -91,14 +134,22 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   Future<void> _selectDay(DateTime day) async {
-    if (day.isAfter(_today)) return;                       // Ignore future taps
-    final entries = await HiveDayStorage.retrieveDay(day);
+    // Allow selecting any day, including future days
+    final entry = await HiveDayStorage.retrieveDay(day);
     setState(() {
       _selectedDay = day;
-      _selectedDayEntries = entries?.entries
-              .map((e) => {'key': e.key, 'value': e.value})
-              .toList() ??
-          [];
+      if (entry != null) {
+        _selectedDayEntries = entry.entries
+            .map((e) => {'key': e.key, 'value': e.value})
+            .toList();
+      } else if (day.isAfter(_today)) {
+        // For future days, create a virtual entry with empty future_note
+        _selectedDayEntries = [
+          {'key': 'future_note', 'value': ''},
+        ];
+      } else {
+        _selectedDayEntries = [];
+      }
     });
   }
 
@@ -112,17 +163,20 @@ class _CalendarPageState extends State<CalendarPage> {
   // ---------- UI ----------
   @override
   Widget build(BuildContext context) {
-    
-
-    // Determine if the selected day is in the future or if no day is selected in the current month
-    final bool isFutureMonth = _focusedMonth.year > _today.year ||
-        (_focusedMonth.year == _today.year && _focusedMonth.month > _today.month);
-    final bool isFutureSelectedDay = isFutureMonth || (_selectedDay != null && _selectedDay!.isAfter(_today));
 
     // final theme = Theme.of(context);
     // final colorScheme = theme.colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Calendar')),
+      appBar: AppBar(
+        title: const Text('Calendar'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month),
+            tooltip: 'Pick month',
+            onPressed: _showMonthPickerDialog,
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         tooltip: 'Go to Today',
         onPressed: _jumpToToday,
@@ -148,7 +202,7 @@ class _CalendarPageState extends State<CalendarPage> {
         children: [
           // ---------- Month cards ----------
           AspectRatio(
-            aspectRatio: isLastDayOfMonth(DateTime.now()) ? 0.96 : 1, // square card for aesthetic; tweak as desired
+            aspectRatio:  0.96, // square card for aesthetic; tweak as desired
             child: PageView.builder(
               controller: _pageController,
               onPageChanged: (index) async {
@@ -174,61 +228,82 @@ class _CalendarPageState extends State<CalendarPage> {
 
           // ---------- Entries list ----------
           Expanded(
-            child: (isFutureSelectedDay)
-                ? const Center(child: Text('This is a future.'))
-                : (_selectedDayEntries.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Icon(Icons.inbox_outlined, size: 40, color: Colors.black26),
-                              const SizedBox(height: 14),
-                              Text(
-                                _selectedDay != null
-                                    ? 'There is no entry for\n${_formatDateLong(_selectedDay!)}'
-                                    : 'No entry for this day.',
-                                textAlign: TextAlign.center,
-                                style: GoogleFonts.prompt(
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 15,
-                                  color: Colors.black54,
-                                  letterSpacing: 0.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : ListView(
-                        padding: EdgeInsets.zero,
-                        children: [
-                          FutureBuilder<List<String>>(
-                            future: HiveDayStorage.retrieveDay(_selectedDay!).then((entry) => entry != null ? List<String>.from(entry['pictures'] ?? []) : <String>[]),
-                            builder: (context, snapshot) {
-                              return DayInfo(
+            child: (_selectedDay == null)
+                ? const SizedBox.shrink()
+                : Builder(
+                    builder: (context) {
+                      final isFuture = _selectedDay != null && _selectedDay!.isAfter(_today);
+                      final hasEntry = _selectedDayEntries.isNotEmpty;
+                      final futureNote = _selectedDayEntries.firstWhere(
+                        (e) => e['key'] == 'future_note',
+                        orElse: () => {'value': ''},
+                      )['value'] as String? ?? '';
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                        child: ListView(
+                          // crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // const SizedBox(height: 18),
+                            // Date header now handled by FutureDayInfo/DayInfo
+                            const SizedBox(height: 18),
+                            if (isFuture)
+                              FutureDayInfo(
                                 date: _selectedDay!,
-                                note: _selectedDayEntries.firstWhere(
-                                  (e) => e['key'] == 'note',
-                                  orElse: () => {'value': null},
-                                )['value'] as String?,
-                                rating: _selectedDayEntries.firstWhere(
-                                  (e) => e['key'] == 'rating',
-                                  orElse: () => {'value': null},
-                                )['value'] is int
-                                    ? _selectedDayEntries.firstWhere(
+                                futureNote: hasEntry && futureNote.isNotEmpty ? futureNote : null,
+                                onEdit: () async {
+                                  await showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      contentPadding: EdgeInsets.all(8),
+                                      content: FutureNoteOverlayInput(date: _selectedDay!),
+                                    ),
+                                  ).then((value) {
+                                    setState(() {
+                                      // Force reload: clear cache and reload events for the selected year
+                                      _events.removeWhere((d, _) => d.year == _selectedDay!.year);
+                                      _loadYearEvents(_selectedDay!.year);
+                                    });
+                                  },);
+                                  // After editing, ensure an entry exists for this future day
+                                  final entry = await HiveDayStorage.retrieveDay(_selectedDay!);
+                                  if (entry == null) {
+                                    // Create a new entry with the future note (handled by overlay input)
+                                    await _loadYearEvents(_selectedDay!.year);
+                                  }
+                                  await _loadYearEvents(_selectedDay!.year);
+                                  await _selectDay(_selectedDay!);
+                                },
+                              )
+                            else
+                              Expanded(
+                                child: FutureBuilder<List<String>>(
+                                  future: HiveDayStorage.retrieveDay(_selectedDay!).then((entry) => entry != null ? List<String>.from(entry['pictures'] ?? []) : <String>[]),
+                                  builder: (context, snapshot) {
+                                    return DayInfo(
+                                      date: _selectedDay!,
+                                      note: _selectedDayEntries.firstWhere(
+                                        (e) => e['key'] == 'note',
+                                        orElse: () => {'value': null},
+                                      )['value'] as String?,
+                                      rating: _selectedDayEntries.firstWhere(
                                         (e) => e['key'] == 'rating',
                                         orElse: () => {'value': null},
-                                      )['value'] as int
-                                    : null,
-                                picturePaths: snapshot.data ?? const <String>[],
-                              );
-                            },
-                          ),
-                        ],
-                      )
+                                      )['value'] is int
+                                          ? _selectedDayEntries.firstWhere(
+                                              (e) => e['key'] == 'rating',
+                                              orElse: () => {'value': null},
+                                            )['value'] as int
+                                          : null,
+                                      picturePaths: snapshot.data ?? const <String>[],
+                                      showDate: false,
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
           )
        ],
@@ -269,8 +344,21 @@ class _MonthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+
     final theme = Theme.of(context);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    // DEBUG: Print all events for this month
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (events.isNotEmpty) {
+        debugPrint('--- EVENTS FOR MONTH ${month.year}-${month.month.toString().padLeft(2, '0')} ---');
+        events.forEach((date, entries) {
+          if (date.year == month.year && date.month == month.month) {
+            debugPrint('  $date: $entries');
+          }
+        });
+        debugPrint('--- END EVENTS ---');
+      }
+    });
 
     // Calculate first weekday and leading empty slots based on week start
     int firstWeekday = month.weekday; // 1 = Mon, 7 = Sun
@@ -289,6 +377,8 @@ class _MonthCard extends StatelessWidget {
         leadingEmpty + daysInMonth + (7 - (leadingEmpty + daysInMonth) % 7) % 7;
 
     final isFutureMonth = month.year > today.year || (month.year == today.year && month.month > today.month);
+
+    // Removed unused isFutureDay helper
     final borderColor = theme.brightness == Brightness.dark
         ? Colors.white.withOpacity(isFutureMonth ? 0.8 : 1.0)
         : Colors.black.withOpacity(isFutureMonth ? 0.8 : 1.0);
@@ -346,7 +436,7 @@ class _MonthCard extends StatelessWidget {
             // -------- Grid --------
             Expanded(
               child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(), // grid fixed inside card
+                physics: const NeverScrollableScrollPhysics(),
                 gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 7,
                   mainAxisSpacing: 4,
@@ -366,9 +456,11 @@ class _MonthCard extends StatelessWidget {
                       selectedDay!.month == date.month &&
                       selectedDay!.day == date.day;
               
+
                   final hasEvent = events.containsKey(date);
                   Color? ratingColor;
                   bool hasNoteNoRating = false;
+                  bool hasFutureNote = false;
                   if (hasEvent) {
                     // Use the first entry's rating for color (or average, or max, as needed)
                     final entry = events[date]!.firstWhere(
@@ -397,63 +489,97 @@ class _MonthCard extends StatelessWidget {
                         default:
                           ratingColor = theme.colorScheme.primary;
                       }
-                    } else {
+                    } 
+                    else {
                       // No rating, but check if there is a note
                       hasNoteNoRating = events[date]!.any((e) => (e['note'] as String?)?.trim().isNotEmpty == true && (e['rating'] == null));
                     }
+                    // Check for future note (robust: support string, map, and ignore empty/whitespace)
+                    hasFutureNote = events[date]!.any((e) {
+                      final val = e['future_note'];
+                      if (val == null) return false;
+                      if (val is String) return val.trim().isNotEmpty;
+                      if (val is Map) {
+                        // Accept if any value in the map is a non-empty string
+                        return val.values.any((v) => v is String && v.trim().isNotEmpty);
+                      }
+                      return false;
+                    });
                   }
-              
-                  Widget dayContent = Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+
+                  Widget dayContent = Stack(
+                    alignment: Alignment.center,
                     children: [
-                      Text(
-                        '$dayNum',
-                        style: TextStyle(
-                          color: isSelected
-                              ? (theme.brightness == Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black)
-                              : null,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                      if (hasEvent)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2.0),
-                          child: Builder(
-                            builder: (context) {
-                              if (ratingColor != null) {
-                                return Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: ratingColor,
-                                    shape: BoxShape.circle,
-                                  ),
-                                );
-                              } else if (hasNoteNoRating) {
-                                // Draw a circle with background color and thin border
-                                return Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: BoxDecoration(
-                                    color: theme.scaffoldBackgroundColor,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: theme.brightness == Brightness.dark
-                                          ? Colors.white54
-                                          : Colors.black54,
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                return const SizedBox.shrink();
-                              }
-                            },
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$dayNum',
+                            style: TextStyle(
+                              color: isSelected
+                                  ? (theme.brightness == Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black)
+                                  : null,
+                              fontWeight:
+                                  isSelected ? FontWeight.bold : FontWeight.normal,
+                            ),
                           ),
-                        ),
+                          if (hasEvent)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2.0),
+                              child: Builder(
+                                builder: (context) {
+                                  if (ratingColor != null) {
+                                    return Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: ratingColor,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    );
+                                  } else if (hasNoteNoRating) {
+                                    // Draw a circle with background color and thin border
+                                    return Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: theme.scaffoldBackgroundColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: theme.brightness == Brightness.dark
+                                              ? Colors.white54
+                                              : Colors.black54,
+                                          width: 1.0,
+                                        ),
+                                      ),
+                                    );
+                                  } else if (isFuture && hasFutureNote) {
+                                    return Container(
+                                      width: 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: theme.scaffoldBackgroundColor,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: theme.brightness == Brightness.dark
+                                              ? Colors.white54
+                                              : Colors.black54,
+                                          width: 1.0,
+                                        ),
+                                      ),
+                                    );
+                                  } else {
+                                    return const SizedBox.shrink();
+                                  }
+                                },
+                              ),
+                            ),
+                        ],
+                      ),
+                     
+                        
                     ],
                   );
               
@@ -465,7 +591,9 @@ class _MonthCard extends StatelessWidget {
                   }
               
                   return GestureDetector(
-                    onTap: isFuture ? null : () => onDayTap(date),
+                    onTap: () async {
+                      onDayTap(date);
+                    },
                     behavior: HitTestBehavior.translucent,
                     child: Container(
                       padding: const EdgeInsets.all(6),

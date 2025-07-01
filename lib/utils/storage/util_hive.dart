@@ -17,21 +17,22 @@ class HiveDayStorage {
   static const String boxName = 'daily_entries';
 
   /// Stores [data] for the given [date] (uses 'YYYY-MM-DD' as key)
-  /// Data is always normalized to {date, note, rating, pictures}
+  /// Data is always normalized to {date, note, rating, pictures, future_note}
   static Future<void> storeDay(DateTime date, Map<String, dynamic> data) async {
     final box = await Hive.openBox(boxName);
     final key = _dateKey(date);
     final normalized = {
       'date': key,
       'note': data['note'] ?? '',
-      'rating': data['rating'] ?? null,
+      'rating': data['rating'],
       'pictures': data['pictures'] ?? <String>[],
+      'future_note': data['future_note'] ?? '',
     };
     await box.put(key, normalized);
   }
 
   /// Retrieves the object for the given [date] (returns null if not found)
-  /// Always returns a normalized object {date, note, rating, pictures} or null
+  /// Always returns a normalized object {date, note, rating, pictures, future_note} or null
   static Future<Map<String, dynamic>?> retrieveDay(DateTime date) async {
     final box = await Hive.openBox(boxName);
     final key = _dateKey(date);
@@ -44,8 +45,9 @@ class HiveDayStorage {
     return {
       'date': map['date'] ?? key,
       'note': map['note'] ?? '',
-      'rating': map['rating'] ?? null,
+      'rating': map['rating'],
       'pictures': List<String>.from(map['pictures'] ?? []),
+      'future_note': map['future_note'] ?? '',
     };
   }
 
@@ -62,16 +64,18 @@ class HiveDayStorage {
             return {
               'date': m['date'] ?? k,
               'note': m['note'] ?? '',
-              'rating': m['rating'] ?? null,
+              'rating': m['rating'],
               'pictures': List<String>.from(m['pictures'] ?? []),
+              'future_note': m['future_note'] ?? '',
             };
           } else if (m is Map) {
             final map = Map<String, dynamic>.from(m);
             return {
               'date': map['date'] ?? k,
               'note': map['note'] ?? '',
-              'rating': map['rating'] ?? null,
+              'rating': map['rating'],
               'pictures': List<String>.from(map['pictures'] ?? []),
+              'future_note': map['future_note'] ?? '',
             };
           }
           return null;
@@ -93,16 +97,18 @@ class HiveDayStorage {
             return {
               'date': m['date'] ?? k,
               'note': m['note'] ?? '',
-              'rating': m['rating'] ?? null,
+              'rating': m['rating'],
               'pictures': List<String>.from(m['pictures'] ?? []),
+              'future_note': m['future_note'] ?? '',
             };
           } else if (m is Map) {
             final map = Map<String, dynamic>.from(m);
             return {
               'date': map['date'] ?? k,
               'note': map['note'] ?? '',
-              'rating': map['rating'] ?? null,
+              'rating': map['rating'],
               'pictures': List<String>.from(map['pictures'] ?? []),
+              'future_note': map['future_note'] ?? '',
             };
           }
           return null;

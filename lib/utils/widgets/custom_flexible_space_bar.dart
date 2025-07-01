@@ -117,7 +117,7 @@ class MyFlexibleSpaceBar extends StatefulWidget {
   ///
   /// Most commonly used in the [AppBar.flexibleSpace] field.
   const MyFlexibleSpaceBar({
-    Key? key,
+    super.key,
     required this.title,
     this.foreground,
     this.background,
@@ -126,7 +126,7 @@ class MyFlexibleSpaceBar extends StatefulWidget {
     required this.titlePaddingTween,
     this.collapseMode = CollapseMode.parallax,
     this.stretchModes = const <StretchMode>[StretchMode.zoomBackground],
-  }) : super(key: key);
+  });
 
   /// The primary contents of the flexible space bar when expanded.
   ///

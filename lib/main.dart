@@ -110,7 +110,7 @@ Widget _buildRunnableApp({
     return app;
   }
 
-  return Container(
+  return SizedBox(
     width: double.infinity,
     height: double.infinity,
     child: Center(

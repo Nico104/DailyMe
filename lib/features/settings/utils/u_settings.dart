@@ -140,7 +140,7 @@ Future<void> exportEntriesToCsvWithPicker(BuildContext context) async {
   String formatDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
   final startStr = formatDate(picked.start);
   final endStr = formatDate(picked.end);
-  final filename = 'dailyme_${startStr}_${endStr}.csv';
+  final filename = 'dailyme_${startStr}_$endStr.csv';
   final file = File('${dir.path}/$filename');
   await file.writeAsString(csv);
 

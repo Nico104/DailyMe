@@ -82,10 +82,10 @@ class _DeleteDayDialogState extends State<DeleteDayDialog> {
                             });
                           }
                         },
-                  child: const Text('Delete'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                   ),
+                  child: const Text('Delete'),
                 ),
               ],
             ),

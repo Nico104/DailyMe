@@ -7,7 +7,7 @@ import 'package:dailyme/utils/storage/util_hive.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class PicturesScreen extends StatefulWidget {
-  const PicturesScreen({Key? key}) : super(key: key);
+  const PicturesScreen({super.key});
 
   @override
   State<PicturesScreen> createState() => _PicturesScreenState();

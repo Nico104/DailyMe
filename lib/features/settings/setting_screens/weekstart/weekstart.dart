@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class WeekStartSettings extends StatefulWidget {
-  const WeekStartSettings({Key? key}) : super(key: key);
+  const WeekStartSettings({super.key});
 
   @override
   State<WeekStartSettings> createState() => _WeekStartSettingsState();

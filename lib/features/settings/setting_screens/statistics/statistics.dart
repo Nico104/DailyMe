@@ -3,7 +3,7 @@ import 'package:dailyme/utils/storage/util_hive.dart';
 import 'package:intl/intl.dart';
 
 class StatisticsScreen extends StatefulWidget {
-  const StatisticsScreen({Key? key}) : super(key: key);
+  const StatisticsScreen({super.key});
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -70,8 +70,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 final rating = e['rating'] is int ? e['rating'] : int.tryParse(e['rating']?.toString() ?? '');
                 final hasNote = note.isNotEmpty;
                 final hasRating = rating != null;
-                if (hasNote && hasRating) both++;
-                else if (hasNote) onlyNote++;
+                if (hasNote && hasRating) {
+                  both++;
+                } else if (hasNote) onlyNote++;
                 else if (hasRating) onlyRating++;
                 if (hasRating) ratings.add(rating!);
               }
