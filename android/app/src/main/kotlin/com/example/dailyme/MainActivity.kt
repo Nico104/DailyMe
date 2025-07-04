@@ -1,4 +1,4 @@
-package com.example.dailyme
+package com.productivity.dailyme
 
 import io.flutter.embedding.android.FlutterActivity
 

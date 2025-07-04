@@ -73,7 +73,7 @@ class FutureDayInfo extends StatelessWidget {
             Text(
               (futureNote != null && futureNote!.trim().isNotEmpty)
                   ? futureNote!
-                  : 'No future note.',
+                  : 'Nothing planned for this day.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontStyle: FontStyle.italic,
                 color: theme.colorScheme.onSurface.withOpacity(0.7),

@@ -93,7 +93,7 @@ BEGIN
             VALUE "FileDescription", "dailyme" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "dailyme" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.productivity. All rights reserved." "\0"
             VALUE "OriginalFilename", "dailyme.exe" "\0"
             VALUE "ProductName", "dailyme" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

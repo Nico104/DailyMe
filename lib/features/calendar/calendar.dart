@@ -275,30 +275,28 @@ class _CalendarPageState extends State<CalendarPage> {
                                 },
                               )
                             else
-                              Expanded(
-                                child: FutureBuilder<List<String>>(
-                                  future: HiveDayStorage.retrieveDay(_selectedDay!).then((entry) => entry != null ? List<String>.from(entry['pictures'] ?? []) : <String>[]),
-                                  builder: (context, snapshot) {
-                                    return DayInfo(
-                                      date: _selectedDay!,
-                                      note: _selectedDayEntries.firstWhere(
-                                        (e) => e['key'] == 'note',
-                                        orElse: () => {'value': null},
-                                      )['value'] as String?,
-                                      rating: _selectedDayEntries.firstWhere(
-                                        (e) => e['key'] == 'rating',
-                                        orElse: () => {'value': null},
-                                      )['value'] is int
-                                          ? _selectedDayEntries.firstWhere(
-                                              (e) => e['key'] == 'rating',
-                                              orElse: () => {'value': null},
-                                            )['value'] as int
-                                          : null,
-                                      picturePaths: snapshot.data ?? const <String>[],
-                                      showDate: false,
-                                    );
-                                  },
-                                ),
+                              FutureBuilder<List<String>>(
+                                future: HiveDayStorage.retrieveDay(_selectedDay!).then((entry) => entry != null ? List<String>.from(entry['pictures'] ?? []) : <String>[]),
+                                builder: (context, snapshot) {
+                                  return DayInfo(
+                                    date: _selectedDay!,
+                                    note: _selectedDayEntries.firstWhere(
+                                      (e) => e['key'] == 'note',
+                                      orElse: () => {'value': null},
+                                    )['value'] as String?,
+                                    rating: _selectedDayEntries.firstWhere(
+                                      (e) => e['key'] == 'rating',
+                                      orElse: () => {'value': null},
+                                    )['value'] is int
+                                        ? _selectedDayEntries.firstWhere(
+                                            (e) => e['key'] == 'rating',
+                                            orElse: () => {'value': null},
+                                          )['value'] as int
+                                        : null,
+                                    picturePaths: snapshot.data ?? const <String>[],
+                                    showDate: false,
+                                  );
+                                },
                               ),
                           ],
                         ),
